@@ -8,10 +8,13 @@ dependencies = [
     "dsp-board",
     "fastdtw>=0.3.4",
     "numpy>=1.26.4,<2.0.0",
+    "pytest>=8.4.2",
+    "setuptools<=79",
     "speechmos",
     "torchmetrics[audio]>=1.8.2",
+    "tqdm>=4.67.1",
 ]
 
 [tool.uv.sources]
-dsp-board = { git = "https://github.com/STnvc7/dsp_board.git" }
 speechmos = { git = "https://github.com/tarepan/SpeechMOS" }
+dsp-board = { git = "https://github.com/STnvc7/dsp_board.git" }

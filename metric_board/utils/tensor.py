@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 from numpy.typing import DTypeLike
 
+
 # ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 def to_numpy(x: torch.Tensor, numpy_dtype: Optional[DTypeLike]=None) -> np.ndarray:
     x_np: np.ndarray = x.cpu().detach().clone().numpy()
@@ -34,3 +35,15 @@ def fix_length(x: torch.Tensor, length: int, axis=-1) -> torch.Tensor:
         return F.pad(x, pad_size)
     else:
         return x
+        
+def channelize(x: torch.Tensor, keep_dims: int) -> torch.Tensor:
+    original_shape = x.shape
+    if x.ndim < keep_dims:
+        raise ValueError(f"Input tensor has {x.ndim} dimensions, but {keep_dims} dimensions are required.")
+    elif x.ndim == keep_dims:
+        x = x.unsqueeze(0)
+    elif x.ndim == keep_dims + 1:
+        pass
+    else:
+        x = x.view(-1, *original_shape[-keep_dims:])
+    return x
