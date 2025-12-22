@@ -1,0 +1,17 @@
+[project]
+name = "metric-board"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "dsp-board",
+    "fastdtw>=0.3.4",
+    "numpy>=1.26.4,<2.0.0",
+    "speechmos",
+    "torchmetrics[audio]>=1.8.2",
+]
+
+[tool.uv.sources]
+dsp-board = { git = "https://github.com/STnvc7/dsp_board.git" }
+speechmos = { git = "https://github.com/tarepan/SpeechMOS" }
