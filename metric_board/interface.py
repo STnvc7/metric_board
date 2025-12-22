@@ -1,3 +1,4 @@
+from typing import List
 from dataclasses import dataclass
 from torchmetrics import Metric
 import torch
@@ -14,12 +15,11 @@ class MetricBase(Metric):
     def __init__(self):
         super().__init__()
 
-    def update(self, preds: torch.Tensor, target: torch.Tensor) -> None:
-        raise NotImplementedError("Subclasses must implement update(preds, target)")
-
+    def update(self, *args, **kwargs) -> None:
+        raise NotImplementedError("Subclasses must implement update()")
     def compute(self) -> MetricOutput:
         raise NotImplementedError("Subclasses must implement compute()")
-
+        
     def calc_output(self, values: torch.Tensor) -> MetricOutput:
         if values.numel() == 0:
             return MetricOutput(0.0, 0.0, 0.0, 0.0, 0.0)
@@ -35,3 +35,18 @@ class MetricBase(Metric):
             min=torch.min(values).item(),
             max=torch.max(values).item()
         )
+        
+class MeanMetric(MetricBase):
+    values: List[torch.Tensor]
+    def __init__(self, sample_rate: int, extended: bool = True):
+        super().__init__()
+        self.sample_rate = sample_rate
+        self.extended = extended
+        self.add_state("values", default=[], dist_reduce_fx="cat")
+
+    def update(self, value: torch.Tensor):
+        self.values.append(value)
+
+    def compute(self) -> MetricOutput:
+        values = torch.cat(self.values)
+        return self.calc_output(values)
