@@ -38,15 +38,11 @@ class MetricBase(Metric):
         
 class MeanMetric(MetricBase):
     values: List[torch.Tensor]
-    def __init__(self, sample_rate: int, extended: bool = True):
+    def __init__(self):
         super().__init__()
-        self.sample_rate = sample_rate
-        self.extended = extended
         self.add_state("values", default=[], dist_reduce_fx="cat")
-
     def update(self, value: torch.Tensor):
         self.values.append(value)
-
     def compute(self) -> MetricOutput:
         values = torch.cat(self.values)
         return self.calc_output(values)
