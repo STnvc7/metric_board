@@ -2,12 +2,13 @@ from typing import Dict, Iterable, Union
 from os import PathLike
 from tqdm import tqdm
 import torch
+import torch.nn as nn
 import torchaudio
 import numpy as np
 
 from metric_board.interface import MetricBase, MetricOutput
 
-class Evaluator:
+class Evaluator(nn.Module):
     """
     A class for evaluating predictions against targets using multiple metrics.
 
@@ -18,7 +19,8 @@ class Evaluator:
         self,
         metrics: Dict[str, MetricBase],
     ):
-        self.metrics = metrics
+        super().__init__()
+        self.metrics = nn.ModuleDict(metrics)
         self.n_evaluations = 0
         self.error_counts = {k: 0 for k in metrics.keys()}
     

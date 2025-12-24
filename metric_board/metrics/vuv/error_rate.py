@@ -24,11 +24,12 @@ class VUVErrorRate(MetricBase):
     def update(self, preds: torch.Tensor, target: torch.Tensor):
         vuv = extract_vuv(target, self.sample_rate, self.hop_size, self.pitch_extract_method)
         vuv_preds = extract_vuv(preds, self.sample_rate, self.hop_size, self.pitch_extract_method)
-        values = vuv != vuv_preds
-        self.values.append(values)
+        acc = vuv != vuv_preds
+        acc = acc.sum() / acc.numel()
+        acc = acc.flatten()
+        self.values.append(acc)
         return
     
     def compute(self) -> MetricOutput:
         values = torch.cat(self.values, dim=-1).flatten()
-        score = values.sum() / len(values)
-        return MetricOutput(mean=score.item())
+        return self.calc_output(values)

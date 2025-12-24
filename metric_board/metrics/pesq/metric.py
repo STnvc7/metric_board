@@ -28,8 +28,9 @@ class PESQ(MetricBase):
         target = resample(target, self.original_sample_rate, self.metric_sample_rate)
         
         try:
-            score = perceptual_evaluation_speech_quality(preds, target, fs=self.metric_sample_rate, mode=self.mode)
-            self.scores.append(score)
+            scores = perceptual_evaluation_speech_quality(preds, target, fs=self.metric_sample_rate, mode=self.mode)
+            scores = scores.flatten()
+            self.scores.append(scores)
         except Exception as e:
             print(f"Error calculating PESQ: {e}")
 
