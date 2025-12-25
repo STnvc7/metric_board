@@ -22,7 +22,7 @@ class UTMOS(MetricBase):
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
         preds = channelize(preds, keep_dims=1) # (..., L) -> (C, L)
-        with torch.no_grad():
+        with torch.inference_mode():
             predictor = self.predictor.to(preds.device)
             score = predictor(preds, sr=self.sample_rate).flatten()
         self.scores.append(score)
