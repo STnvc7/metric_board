@@ -1,6 +1,5 @@
 from typing import List, Union
 from dataclasses import dataclass
-from numpy import int128
 from torchmetrics import Metric
 import torch
 
