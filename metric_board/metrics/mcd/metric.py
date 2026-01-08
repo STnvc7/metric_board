@@ -4,13 +4,11 @@ import torch
 from dsp_board.features import mel_generalized_cepstrum, mel_cepstrum, mfcc
 from fastdtw import fastdtw  # type: ignore
 
-from metric_board.utils.tensor import to_numpy, from_numpy
-from metric_board.interface import MetricBase, MetricOutput
+from metric_board.utils.tensor import to_numpy, from_numpy, channelize
+from metric_board.interface import MetricBase, MeanMetric, MetricOutput
 
 
 class MCD(MetricBase):
-    distortions: List[torch.Tensor]
-    
     def __init__(
         self,
         sample_rate: int,
@@ -29,8 +27,7 @@ class MCD(MetricBase):
         self.order = order
         self.stage = stage
         self.n_mels = 80
-        
-        self.add_state("distortions", default=[], dist_reduce_fx="cat")
+        self.metric = MeanMetric()
 
     def calc_mcep(self, x):
         if self.mcep_type == "mcep":
@@ -66,41 +63,39 @@ class MCD(MetricBase):
     
     def update(self, preds: torch.Tensor, target: torch.Tensor):
 
-        # Create a mask to remove small values
-        # Extremely small values can cause numerical instability
-        nonzero_indices = torch.logical_and(
-            ~torch.isclose(target, torch.zeros_like(target), atol=1e-6), 
-            ~torch.isclose(preds, torch.zeros_like(preds), atol=1e-6)
-        )
-
+        preds = channelize(preds, keep_dims=1)
+        target = channelize(target, keep_dims=1)
+        preds = preds + torch.randn_like(preds) * 1e-6
+        target = target + torch.randn_like(target) * 1e-6
+        
         # calculate mcep ---------------------
         try:
-            mgc = self.calc_mcep(target[nonzero_indices])
-            mgc_preds = self.calc_mcep(preds[nonzero_indices])
+            mgc = self.calc_mcep(target)
+            mgc_preds = self.calc_mcep(preds)
         except Exception as e:
             print(f"Error calculating MGC: {e}")
             return
 
         # dtw --------------------------------
-        mgc = mgc.permute(1,0)  # (frame, order)
-        mgc_preds = mgc_preds.permute(1, 0) # (frame, order)
-        mgc = to_numpy(mgc)
-        mgc_preds = to_numpy(mgc_preds)
+        for i in range(mgc.shape[0]):
+            _mgc = mgc[i].permute(1,0)  # (frame, order)
+            _mgc_preds = mgc_preds[i].permute(1, 0) # (frame, order)
+            _mgc = to_numpy(_mgc)
+            _mgc_preds = to_numpy(_mgc_preds)
+    
+            _, path = fastdtw(_mgc, _mgc_preds)
+            pathx = list(map(lambda l: l[0], path))
+            pathy = list(map(lambda l: l[1], path))
+            _mgc, _mgc_preds = _mgc[pathx], _mgc_preds[pathy]
 
-        _, path = fastdtw(mgc, mgc_preds)
-        pathx = list(map(lambda l: l[0], path))
-        pathy = list(map(lambda l: l[1], path))
-        mgc, mgc_preds = mgc[pathx], mgc_preds[pathy]
-
-        # aggregate ---------------------------
-        mgc = from_numpy(mgc, self.device, torch.float32)
-        mgc_preds = from_numpy(mgc_preds, self.device, torch.float32)
-        distortion_per_frame = torch.sqrt(2 * torch.sum((mgc - mgc_preds).pow(2), dim=-1))
-        self.distortions.append(distortion_per_frame)
+            # aggregate ---------------------------
+            _mgc = from_numpy(_mgc, self.device, torch.float32)
+            _mgc_preds = from_numpy(_mgc_preds, self.device, torch.float32)
+            distortion = torch.sqrt(2 * torch.sum((_mgc - _mgc_preds)**2, dim=-1))
+            distortion = (10 / math.log(10)) * distortion
+            self.metric.update(distortion.flatten())
 
         return
     
     def compute(self) -> MetricOutput:
-        distortions = torch.cat(self.distortions, dim=-1).flatten()
-        mcd = (10 / math.log(10)) * distortions
-        return self.calc_output(mcd)
+        return self.metric.compute()

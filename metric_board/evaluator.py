@@ -21,8 +21,6 @@ class Evaluator(nn.Module):
     ):
         super().__init__()
         self.metrics = nn.ModuleDict(metrics)
-        self.n_evaluations = 0
-        self.error_counts = {k: 0 for k in metrics.keys()}
     
     # :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     def evaluate(
@@ -49,12 +47,9 @@ class Evaluator(nn.Module):
         target_list = list(target_list)
 
         if len(preds_list) != len(target_list):
-            raise ValueError(
-                f"Length mismatch: preds({len(preds_list)}) and target({len(target_list)}) must have the same length."
-            )
-        self.n_evaluations = len(preds_list) 
+            raise ValueError(f"Length mismatch: preds({len(preds_list)}) and target({len(target_list)}) must have the same length.")
         
-        for preds, target in tqdm(zip(preds_list, target_list), total=self.n_evaluations):
+        for preds, target in tqdm(zip(preds_list, target_list), total=len(preds_list)):
             self.update(preds, target)
         
         results = self.compute()
@@ -92,7 +87,6 @@ class Evaluator(nn.Module):
             try:
                 metric.update(preds, target)
             except Exception as e:
-                self.error_counts[key] += 1
                 print(f"Error in metric '{key}': {type(e).__name__}: {e}\n")
         return
     
@@ -107,6 +101,4 @@ class Evaluator(nn.Module):
     def reset(self):
         for metric in self.metrics.values():
             metric.reset()
-        self.n_evaluations = 0
-        self.error_counts = {k: 0 for k in self.error_counts}
         return

@@ -3,12 +3,10 @@ import torch
 from torchmetrics.functional.audio.pesq import perceptual_evaluation_speech_quality
 from dsp_board.preprocesses import resample
 
-from metric_board.interface import MetricBase, MetricOutput
+from metric_board.interface import MetricBase, MetricOutput, MeanMetric
 from metric_board.utils.tensor import channelize
 
 class PESQ(MetricBase):
-    scores: List[torch.Tensor]
-    
     def __init__(
         self,
         original_sample_rate: int,
@@ -19,7 +17,7 @@ class PESQ(MetricBase):
         self.original_sample_rate = original_sample_rate
         self.metric_sample_rate = metric_sample_rate
         self.mode = mode
-        self.add_state("scores", default=[], dist_reduce_fx="cat")
+        self.metric = MeanMetric()
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
         preds = channelize(preds, keep_dims=1) # (..., L) -> (C, L)
@@ -30,10 +28,9 @@ class PESQ(MetricBase):
         try:
             scores = perceptual_evaluation_speech_quality(preds, target, fs=self.metric_sample_rate, mode=self.mode)
             scores = scores.flatten()
-            self.scores.append(scores)
+            self.metric.update(scores)
         except Exception as e:
             print(f"Error calculating PESQ: {e}")
 
     def compute(self) -> MetricOutput:
-        scores = torch.cat(self.scores, dim=-1).flatten()
-        return self.calc_output(scores)
+        return self.metric.compute()

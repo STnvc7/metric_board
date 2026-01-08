@@ -1,13 +1,11 @@
-from typing import Literal, List
-import math
+from typing import Literal
 import torch
 from dsp_board.features import pitch
 
-from metric_board.interface import MetricBase, MetricOutput
+from metric_board.interface import MetricBase, MetricOutput, MAEMetric, MSEMetric, RMSEMetric
+from metric_board.utils.tensor import channelize
 
 class Pitch(MetricBase):
-    errors: List[torch.Tensor]
-    
     def __init__(
         self,
         sample_rate: int,
@@ -26,11 +24,15 @@ class Pitch(MetricBase):
         assert scale in ["linear", "log", "cent"], f"Unsupported scale: {scale}. Choose from 'linear', 'log', or 'cent'."
         self.scale = scale
         
-        assert distance in ["mae", "mse", "rmse"], f"Unsupported distance: {distance}. Choose from 'mae', 'mse', or 'rmse'."
-        self.distance = distance
+        if distance == "mae":
+            self.metric = MAEMetric(dim=-1)
+        elif distance == "mse":
+            self.metric = MSEMetric(dim=-1)
+        elif distance == "rmse":
+            self.metric = RMSEMetric(dim=-1)
+        else:
+            raise ValueError(f"Unsupported distance metric: {distance}. Choose from 'mae', 'mse', or 'rmse'.")
         
-        self.add_state("errors", default=[], dist_reduce_fx="cat")
-
     def convert_scale(self, f0: torch.Tensor) -> torch.Tensor:
         if self.scale == "linear":
             return f0
@@ -48,39 +50,20 @@ class Pitch(MetricBase):
             sample_rate=self.sample_rate,
             hop_size=self.hop_size,
             method=self.pitch_extract_method,
-        ).squeeze()
-        
-        f0 = fn(target)
-        f0_preds = fn(preds)
+        )
+        target = channelize(target, keep_dims=1) #(..., L) -> (C, L)
+        preds = channelize(preds, keep_dims=1) #(..., L) -> (C, L)
+        f0 = fn(target) #(C, 1, L)
+        f0_preds = fn(preds) #(C, 1, L)
         
         # only voiced frames -----------------------
         nonzero_indeces = torch.logical_and(f0 != 0, f0_preds != 0)
         f0 = f0[nonzero_indeces]
         f0_preds = f0_preds[nonzero_indeces]
-
         f0 = self.convert_scale(f0)
         f0_preds = self.convert_scale(f0_preds)
-
-        abs_error = torch.abs(f0 - f0_preds)
-        self.errors.append(abs_error)
-            
+        self.metric.update(f0_preds, f0)
         return
     
     def compute(self) -> MetricOutput:
-        errors = torch.cat(self.errors, dim=-1).flatten()
-        if self.distance == "mae":
-            return self.calc_output(errors)
-        elif self.distance == "mse":
-            return self.calc_output(errors ** 2)
-        elif self.distance == "rmse":
-            outputs = self.calc_output(errors ** 2)
-            rmse = math.sqrt(outputs.mean)
-            return MetricOutput(
-                mean=rmse,
-                std=math.sqrt(outputs.std),
-                std_error=outputs.std_error / (2 * rmse) if rmse > 0 else 0.0,
-                min=math.sqrt(outputs.min),
-                max=math.sqrt(outputs.max)
-            )
-        else:
-            raise ValueError(f"Unsupported distance: {self.distance}. Choose from 'mae', 'mse', or 'rmse'.")
+        return self.metric.compute()

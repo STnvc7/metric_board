@@ -1,13 +1,11 @@
-from typing import List, cast
+from typing import cast
 import torch
 from speechmos.utmos22.strong.model import UTMOS22Strong
 
-from metric_board.interface import MetricBase, MetricOutput
+from metric_board.interface import MetricBase, MetricOutput, MeanMetric
 from metric_board.utils.tensor import channelize
 
 class UTMOS(MetricBase):
-    scores: List[torch.Tensor]
-    
     def __init__(
         self,
         sample_rate: int,
@@ -18,15 +16,14 @@ class UTMOS(MetricBase):
         self.predictor.eval()
         for param in self.predictor.parameters():
             param.requires_grad = False
-        self.add_state("scores", default=[], dist_reduce_fx="cat")
-
+        self.metric = MeanMetric()
+        
     def update(self, preds: torch.Tensor, target: torch.Tensor):
         preds = channelize(preds, keep_dims=1) # (..., L) -> (C, L)
         with torch.inference_mode():
             predictor = self.predictor.to(preds.device)
             score = predictor(preds, sr=self.sample_rate).flatten()
-        self.scores.append(score)
+        self.metric.update(score)
 
     def compute(self) -> MetricOutput:
-        scores = torch.cat(self.scores, dim=-1).flatten()
-        return self.calc_output(scores)
+        return self.metric.compute()

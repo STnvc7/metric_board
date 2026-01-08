@@ -1,6 +1,6 @@
 import pytest
 
-@pytest.mark.parametrize("audio_type", ["file", "tensor"])
+@pytest.mark.parametrize("audio_type", ["tensor", "file"])
 @pytest.mark.parametrize("evaluator_device", ["cpu", "cuda"])
 @pytest.mark.parametrize("audio_device", ["cpu", "cuda"])
 def test_metrics(evaluator, audio, audio_type, evaluator_device, audio_device):
