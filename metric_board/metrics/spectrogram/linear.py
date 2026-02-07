@@ -11,14 +11,12 @@ class Spectrogram(MetricBase):
         self,
         fft_size: int,
         hop_size: int,
-        power: bool = False,
         log: bool = True,
         distance: Literal["mae", "mse", "rmse"] = "mse",
     ):
         super().__init__()
         self.fft_size = fft_size
         self.hop_size = hop_size
-        self.power = power
         self.log = log
         
         if distance == "mae":
@@ -36,7 +34,6 @@ class Spectrogram(MetricBase):
             x,
             fft_size=self.fft_size,
             hop_size=self.hop_size,
-            power=self.power,
             log=self.log,
         )
         

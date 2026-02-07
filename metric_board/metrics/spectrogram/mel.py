@@ -13,7 +13,6 @@ class MelSpectrogram(MetricBase):
         fft_size: int,
         hop_size: int,
         n_mels: int,
-        power: bool = False,
         log: bool = True,
         distance: Literal["mae", "mse", "rmse"] = "mse",
     ):
@@ -22,7 +21,6 @@ class MelSpectrogram(MetricBase):
         self.fft_size = fft_size
         self.n_mels = n_mels
         self.hop_size = hop_size
-        self.power = power
         self.log = log
         
         if distance == "mae":
@@ -42,7 +40,6 @@ class MelSpectrogram(MetricBase):
             fft_size=self.fft_size,
             hop_size=self.hop_size,
             n_mels=self.n_mels,
-            power=self.power,
             log=self.log,
         )
 
