@@ -386,7 +386,7 @@ wheels = [
 [[package]]
 name = "dsp-board"
 version = "0.1.0"
-source = { git = "https://github.com/STnvc7/dsp_board.git#010f4ff7570303909f6f3e5885e67ca0dc487057" }
+source = { git = "https://github.com/STnvc7/dsp_board.git#48585f4b164587387e4ae532798b8a270bdd9f17" }
 dependencies = [
     { name = "numpy" },
     { name = "pysptk" },
