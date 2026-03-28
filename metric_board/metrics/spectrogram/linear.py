@@ -1,7 +1,7 @@
-from typing import Literal, List
+from typing import Literal
 import math
 import torch
-from dsp_board.features import spectrogram
+from dsp_board.features import linear_spectrogram, log_spectrogram
 
 from metric_board.interface import MetricBase, MetricOutput, MAEMetric, MSEMetric, RMSEMetric
 from metric_board.utils.tensor import channelize
@@ -19,6 +19,19 @@ class Spectrogram(MetricBase):
         self.hop_size = hop_size
         self.log = log
         
+        if log:
+            self.fn = lambda x: log_spectrogram(
+                x,
+                fft_size=self.fft_size,
+                hop_size=self.hop_size,
+            )
+        else:
+            self.fn = lambda x: linear_spectrogram(
+                x,
+                fft_size=self.fft_size,
+                hop_size=self.hop_size,
+            )
+        
         if distance == "mae":
             self.metric = MAEMetric(dim=1)
         elif distance == "mse":
@@ -30,17 +43,10 @@ class Spectrogram(MetricBase):
         
     def update(self, preds: torch.Tensor, target: torch.Tensor):
         
-        fn = lambda x: spectrogram(
-            x,
-            fft_size=self.fft_size,
-            hop_size=self.hop_size,
-            log=self.log,
-        )
-        
         target = channelize(target, keep_dims=1) #(..., L) -> (C, L)
         preds = channelize(preds, keep_dims=1) #(..., L) -> (C, L)
-        spc_target = fn(target) #(C, F, T)
-        spc_preds = fn(preds) #(C, F, T)
+        spc_target = self.fn(target) #(C, F, T)
+        spc_preds = self.fn(preds) #(C, F, T)
         
         self.metric.update(spc_preds, spc_target)
         return
