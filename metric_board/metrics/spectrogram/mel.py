@@ -1,5 +1,4 @@
-from typing import Literal, List
-import math
+from typing import Literal
 import torch
 from dsp_board.features import mel_spectrogram
 

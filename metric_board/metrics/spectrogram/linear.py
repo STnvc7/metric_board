@@ -1,5 +1,4 @@
 from typing import Literal
-import math
 import torch
 from dsp_board.features import linear_spectrogram, log_spectrogram
 
